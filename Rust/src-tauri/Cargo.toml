@@ -1,0 +1,48 @@
+[package]
+name = "chess-app"
+version = "0.1.0"
+description = "A Tauri App"
+authors = ["you"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "chess_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# ort = { version = "2.0.0-rc.9", features = ["download-binaries", "copy-dylibs", "ndarray"] }
+tract-onnx = "0.21.7"
+cozy-chess = "0.3.4"
+ndarray = "0.17.2"
+
+# Optimize dependencies even in debug builds
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+# Optimize for binary size ("s" or "z") or speed ("3")
+opt-level = 3         # 'z' compresses size; use '3' if pure speed is preferred
+
+# Enable Link Time Optimization (LTO) across all crates
+lto = true
+
+# Process codegen units sequentially for maximum optimization
+codegen-units = 1
+
+# Strip symbol tables and debug information from the final binary
+strip = true
+
+# Panic by aborting immediately (removes unwinding landing pads to reduce size)
+panic = "abort"

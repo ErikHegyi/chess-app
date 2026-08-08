@@ -1,0 +1,156 @@
+\documentclass[12pt]{article}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{physics}
+\usepackage{esint}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usepackage{csquotes}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+\usepackage{hyperref}
+\hypersetup{
+	colorlinks,
+	citecolor=black,
+	filecolor=black,
+	linkcolor=black,
+	urlcolor=black
+}
+
+\usetikzlibrary{calc, angles, quotes, positioning}
+\tikzset{axis/.style={->, thick},}
+
+
+\begin{document}
+	
+% Remove page numbering
+\pagenumbering{gobble}
+
+% Set the title, author and date
+\title{On training a local, small-scale chess AI}
+\author{Hegyi Erik}
+\date{\today}
+\maketitle
+
+\newpage
+
+% Add a table of contents, which makes quick navigation possible
+\tableofcontents
+
+\newpage
+
+% Add back page numbering
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+% First section - representation of the chessboard
+\section{How to represent the chessboard}
+
+% First subsection - discussing what parts of the chessboard need representation
+\subsection{What needs to be represented?}\label{What needs to be represented?}
+A \textbf{chessboard} is a \textbf{table}, which has \textbf{8 rows} and \textbf{8 columns}. \\
+Each cell of this table has exactly one value - what piece is occupying that cell. This can either be:
+\begin{itemize}
+	% Change the spacing between the lines
+	\setlength{\itemsep}{0.5em}
+	
+	\item None
+	\item White or black pawn
+	\item White or black knight
+	\item White or black bishop
+	\item White or black rook
+	\item White or black queen
+	\item White or black king
+\end{itemize}
+This is all the information that a chessboard contains - where the pieces are - and all the information that \textit{we} need to represent. Everything else is encoded by the rules of the game, not by the state of the board itself.
+
+% Second subsection - discussing how the pieces are best represented so the model can learn optimally
+\subsection{How should we represent the game?}
+If we were to give each piece an \textit{"ID"}, like \(1\) for pawn and \(4\) for rook, then we would quickly run into a problem - the pieces could be added together. In chess, multiplying a pawn by 4 does not result in a rook, since it is an undefined operation. \\
+Thus, we need to find a better representation, and that is going to be through \textbf{channels}. \\ Instead of representing the board as one \textbf{matrix}, we are going to represent it as a \textbf{tensor}. \\
+
+\newpage
+
+\noindent
+Let \(P\) be the number of pieces that exist in a game of chess. Since we are dealing with classic chess, \(P = 6\). These 6 pieces have already been listed in section \ref{What needs to be represented?}. \\
+Let \(O\) be the number of players, with \(O = 2\) holding true for classic chess. Let \(W\) be the width of the chessboard, and let \(H\) be the height of the chessboard. In classic chess \(W = H = 8\). \\
+We are going to deal with \textbf{binary matrices}. Each piece type is going to have a matrix of its own, which encodes where these pieces are, and where they are not.
+
+\begin{displayquote}
+	\textit{In reality, each piece will have two of these matrices, one for encoding the white pieces of this type, and one for encoding the black pieces of this type. From now on, whenever we are talking about a piece type's dimension, we are talking about one specific colour.}
+\end{displayquote}
+
+\noindent
+For example, before the first move has been made, the binary matrix of the white pawn would look like this:
+\begin{equation*}
+	\begin{pmatrix}
+		0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+		0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+		0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+		0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+		0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+		0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+		1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 \\
+		0 & 0 & 0 & 0 & 0 & 0 & 0 & 0
+	\end{pmatrix}
+\end{equation*}
+Since the pawns are only in one row, all the \(1\) values are found in that row. Anywhere where a white pawn is not to be found, we place a \(0\). \\
+With this method, we can no longer look for any operation which will transform a certain piece into another one, since all piece types exist in different dimensions. \\
+Thus, our \textbf{state tensor} \(\mathbf{T}\) is going to be of the shape:
+\begin{equation}
+	\mathbf{T} \in \mathbb{B}^{PO \cross W \cross H} \label{State Tensor Dimensions} \tag{1.2.1}
+\end{equation}
+
+\newpage
+
+% Third subsection - discussing how we can optimize the representation, so we use the least
+% amount of memory, storage and processing power
+\subsection{How can we optimize the representation?}
+We can see that the state tensor only contains ones and zeros, since it is a binary tensor. \\
+According to \eqref{State Tensor Dimensions}, the tensor is going to have the dimensions of:
+\begin{equation*}
+	12 \cross 8 \cross 8
+\end{equation*}
+Or in other words, the tensor is going to contain \(768\) \textbf{bits}. This is exactly \(12 \cdot 64\), which means that, since we are dealing with bits only, we can encode it into twelve \textbf{64-bit integers}, one for each piece.
+
+\newpage
+
+% Second section - defining the model architecture
+\section{What should the model architecture look like?}
+It is important to notice that the chessboard is in the same format as a \textbf{picture} with twelve channels. It is important for our chess AI interpret data the same no matter where the pieces are, since it does not matter where the pieces are located, it only matters how they are located with respect to all the other pieces. This makes it obvious that we must use a \textbf{convolutional neural network}. \\
+The input of the neural network is going to be a tensor of size \(PO \cross W \cross H\). \\
+Then, we are going to use multiple convolutional layers to gradually extract information from the board, with the layers having 2x2 kernels. We are going to increase the number of channels from 12 to 16, 32, 64, 128, 256, 512, 1024 and 2048. Inbetween, we are going to use max- and average pooling to reduce the number of spatial dimensions. \\
+We are also going to use skip connections to improve the learning efficiency of the model.  \\
+At the end, when we have a tensor of size \(2048 \cross 1 \cross 1\), we are going to flatten the tensor into a vector, and then create a linear, fully connected layer, which reduces the dimensionality into a single scalar. \\
+Then, we are going to use the hyperbolic tangent function to normalize the output between -1 and +1.
+
+\newpage
+
+% Third section - using the model to predict the best move
+\section{How to predict the best move?}
+
+\newpage
+
+% Fourth section - training the model
+\section{How do we train the model?}
+
+% First subsection - training the model on fixed endgames
+\subsection{How can we start training the model?}
+
+\newpage
+
+% Second subsection - training the model on self-play endgames
+\subsection{How can the model start learning by playing against itself?}
+
+\newpage
+
+% Third subsection - training the model on self-play middle games
+\subsection{How can we improve the model?}
+
+\newpage
+
+% Fourth subsection - training the model on self-play games
+\subsection{How can we train a fully working chess AI?}
+
+
+\end{document}

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tauri App</title>
+    <script type="module" src="/src/main.ts" defer></script>
+    <style>
+      body {
+        font-family: sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background-color: #121212;
+        color: #ffffff;
+        margin-top: 40px;
+      }
+
+      .board-container {
+        display: grid;
+        grid-template-columns: repeat(8, 60px);
+        grid-template-rows: repeat(8, 60px);
+        border: 4px solid #333;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      }
+
+      .square {
+        width: 60px;
+        height: 60px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 38px;
+        user-select: none;
+      }
+
+      /* Light & Dark Squares */
+      .square.light { background-color: #f0d9b5; }
+      .square.dark { background-color: #b58863; }
+
+      /* Piece Colors */
+      .piece-white {
+        color: #ffffff;
+        text-shadow: 0 0 2px #000, 0 0 2px #000; /* Outline to stand out on light squares */
+      }
+      .piece-black {
+        color: #000000;
+      }
+    </style>
+  </head>
+
+  <body>
+  <h2>Chess Board Visualizer</h2>
+  <div id="board" class="board-container"></div>
+  </body>
+</html>
